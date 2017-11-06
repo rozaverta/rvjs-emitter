@@ -1,0 +1,21 @@
+{
+	"name": "rvjs-emitter",
+	"version": "1.0.0",
+	"description": "Custom event listener dispatcher for store",
+	"main": "src/emitter.js",
+	"scripts": {
+		"test": "echo \"Error: no test specified\" && exit 1"
+	},
+	"keywords": [
+		"hook",
+		"trigger",
+		"events",
+		"dispatcher",
+		"callback"
+	],
+	"dependencies": {
+		"rvjs-tools": "*"
+	},
+	"author": "GoshaV [Maniako]",
+	"license": "MIT"
+}
