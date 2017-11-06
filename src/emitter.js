@@ -22,10 +22,8 @@ var supportBlob = typeof Blob !== 'undefined';
 var supportFile = typeof File !== 'undefined';
 
 function getQueryString(object, prefix) {
-	var _this = this;
-
 	return Object.keys(object).map(function (name) {
-		var value = _this.store[name];
+		var value = object[name];
 
 		if (_rvjsTools2.default.isScalar(value)) {
 			value = _rvjsTools2.default.toString(value);
@@ -95,22 +93,27 @@ var Emitter = function () {
 	}
 
 	_createClass(Emitter, [{
+		key: 'keys',
+		value: function keys() {
+			return Object.keys(this.store);
+		}
+	}, {
 		key: 'fill',
 		value: function fill(data) {
-			var _this2 = this;
+			var _this = this;
 
 			Object.keys(data).forEach(function (name) {
-				_this2.store[name] = data[name];
+				_this.store[name] = data[name];
 			});
 			return this;
 		}
 	}, {
 		key: 'forEach',
 		value: function forEach(callback) {
-			var _this3 = this;
+			var _this2 = this;
 
-			Object.keys(this.store).forEach(function (name) {
-				callback(_this3.store[name], name);
+			this.keys().forEach(function (name) {
+				callback(_this2.store[name], name);
 			});
 
 			return this;
@@ -179,54 +182,66 @@ var Emitter = function () {
 	}, {
 		key: 'toArray',
 		value: function toArray() {
-			var _this4 = this;
+			var _this3 = this;
 
 			return Object.keys(this.store).map(function (name) {
 				return {
 					name: name,
-					value: _this4.store[name]
+					value: _this3.store[name]
 				};
 			});
 		}
 	}, {
 		key: 'toFormData',
 		value: function toFormData() {
-			var _this5 = this;
-
-			var value = void 0;
 			var form = new FormData();
 
-			Object.keys(this.store).forEach(function (name) {
+			this.forEach(function (value, name) {
 
-				value = _this5.store[name];
-
+				// This option is not possible if you use class methods
 				if (value === null || value === undefined) {
 					value = '';
 				} else if ((typeof value === 'undefined' ? 'undefined' : _typeof(value)) === 'object') {
 					// array too
 
-					if (Array.isArray(value)) {
+					var array = Array.isArray(value),
+					    remap = [],
+					    raw = !array && (supportFile && value instanceof File || supportBlob && value instanceof Blob);
+
+					if (array) {
 
 						// only for string array values
 						// use default query array
 
-						var append = [];
+						var arrayName = name + '[]';
 						for (var i = 0, length = value.length; i < length; i++) {
 
 							if (_rvjsTools2.default.isScalar(value[i])) {
-								append[i] = _rvjsTools2.default.toString(value[i]);
+								remap.push(arrayName, value[i]);
 							} else {
-								append = getJson(value);
+								array = false;
 								break;
 							}
 						}
+					} else if (!raw) {
+						array = true;
+						Object.keys(value).some(function (key) {
+							if (_rvjsTools2.default.isScalar(value[key])) {
+								remap.push(name + "[" + key + "]", value[key]);
+							} else {
+								array = false;
+								return false;
+							}
+						});
+					}
 
-						value = append;
-					} else {
-						var raw = supportFile && value instanceof File || supportBlob && value instanceof Blob;
-						if (!raw) {
-							value = getJson(value);
+					if (array) {
+						for (var _i = 0, _length = remap.length; _i < _length; _i += 2) {
+							form.append(remap[_i], _rvjsTools2.default.toString(remap[_i + 1]));
 						}
+						return void 0;
+					} else if (!raw) {
+						value = getJson(value);
 					}
 				} else if (typeof value === 'boolean') {
 					value = value ? '1' : '0';
