@@ -121,7 +121,7 @@ var Emitter = function () {
 			var dispatch = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : true;
 
 			var self = this,
-			    action = self.has(name) ? 'create' : 'update',
+			    action = self.has(name) ? 'update' : 'create',
 			    oldValue = action === 'create' ? null : self.store[name];
 
 			if (typeof value === 'undefined' || value === null) {
@@ -148,7 +148,7 @@ var Emitter = function () {
 	}, {
 		key: 'get',
 		value: function get(name) {
-			return this.store[name];
+			return this.has(name) ? this.store[name] : null;
 		}
 	}, {
 		key: 'has',

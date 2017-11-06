@@ -1,6 +1,6 @@
 {
 	"name": "rvjs-emitter",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Custom event listener dispatcher for store",
 	"main": "src/emitter.js",
 	"scripts": {
