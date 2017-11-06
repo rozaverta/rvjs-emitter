@@ -21,20 +21,41 @@ var Cache = {};
 var supportBlob = typeof Blob !== 'undefined';
 var supportFile = typeof File !== 'undefined';
 
+function queryString(value, name, key) {
+	if (_rvjsTools2.default.isScalar(value)) {
+		value = _rvjsTools2.default.toString(value);
+	} else if (key !== name) {
+		value = '';
+	} else {
+		return getQueryString(value, name);
+	}
+
+	return encodeURIComponent(key) + "=" + encodeURIComponent(value);
+}
+
 function getQueryString(object, prefix) {
-	return Object.keys(object).map(function (name) {
-		var value = object[name];
+	var array = [],
+	    key = void 0;
 
-		if (_rvjsTools2.default.isScalar(value)) {
-			value = _rvjsTools2.default.toString(value);
-		} else if (prefix) {
-			value = '';
-		} else {
-			return getQueryString(value, name);
+	if (Array.isArray(object)) {
+		for (var i = 0, length = object.length; i < length; i++) {
+			key = i;
+			if (prefix !== null) {
+				key = prefix + '[]';
+			}
+			array.push(queryString(object[i], i, key));
 		}
+	} else {
+		array = Object.keys(object).map(function (name) {
+			key = name;
+			if (prefix !== null) {
+				key = prefix + '[' + key + ']';
+			}
+			return queryString(object[name], name, key);
+		});
+	}
 
-		return encodeURIComponent(prefix ? prefix + "[" + name + "]" : name) + "=" + encodeURIComponent(value);
-	}).join('&');
+	return array.join('&');
 }
 
 function getJson(value) {
@@ -257,7 +278,7 @@ var Emitter = function () {
 	}, {
 		key: 'toQueryString',
 		value: function toQueryString() {
-			return getQueryString(this.store, '');
+			return getQueryString(this.store, null);
 		}
 
 		/**
