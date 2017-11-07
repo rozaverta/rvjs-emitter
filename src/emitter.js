@@ -4,9 +4,9 @@ Object.defineProperty(exports, "__esModule", {
 	value: true
 });
 
-var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
 var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
+
+var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
 
 var _rvjsTools = require('rvjs-tools');
 
@@ -20,6 +20,11 @@ var Cache = {};
 
 var supportBlob = typeof Blob !== 'undefined';
 var supportFile = typeof File !== 'undefined';
+var supportFormData = typeof FormData !== 'undefined';
+
+function hasRaw(object) {
+	return (typeof object === 'undefined' ? 'undefined' : _typeof(object)) === 'object' && (supportBlob && object instanceof Blob || supportFile && object instanceof File);
+}
 
 function queryString(value, name, key) {
 	if (_rvjsTools2.default.isScalar(value)) {
@@ -97,6 +102,73 @@ function dispatcher(emit, action, name, value, oldValue) {
 	}
 }
 
+var regName = /^(.*?)\[(.*?)]$/;
+
+// warning, pattern 'name[]' can create an invalid argument
+function fromFormData(data) {
+	var object = {},
+	    result = {},
+	    name = void 0,
+	    m = void 0;
+
+	var _iteratorNormalCompletion = true;
+	var _didIteratorError = false;
+	var _iteratorError = undefined;
+
+	try {
+		for (var _iterator = data.entries()[Symbol.iterator](), _step; !(_iteratorNormalCompletion = (_step = _iterator.next()).done); _iteratorNormalCompletion = true) {
+			var entry = _step.value;
+
+			name = entry[0];
+			m = name.match(regName);
+			if (m) {
+				if (!object.hasOwnProperty(m[1])) {
+					object[m[1]] = { array: true, index: 0, length: 0, keys: [], values: [] };
+				}
+
+				var obj = object[m[1]],
+				    key = m[2];
+				if (key.length < 1) {
+					key = obj.index++;
+				} else if (obj.array) {
+					obj.array = false;
+				}
+				obj.keys[obj.length] = key;
+				obj.values[obj.length++] = entry[1];
+			} else {
+				result[name] = entry[1];
+			}
+		}
+	} catch (err) {
+		_didIteratorError = true;
+		_iteratorError = err;
+	} finally {
+		try {
+			if (!_iteratorNormalCompletion && _iterator.return) {
+				_iterator.return();
+			}
+		} finally {
+			if (_didIteratorError) {
+				throw _iteratorError;
+			}
+		}
+	}
+
+	Object.keys(object).forEach(function (name) {
+		var obj = object[name];
+		if (obj.array) {
+			result[name] = obj.values;
+		} else {
+			result[name] = {};
+			for (var i = 0; i < obj.length; i++) {
+				result[name][obj.keys[i]] = obj.values[i];
+			}
+		}
+	});
+
+	return result;
+}
+
 var Emitter = function () {
 	function Emitter(data) {
 		_classCallCheck(this, Emitter);
@@ -104,13 +176,7 @@ var Emitter = function () {
 		this.store = {};
 		this.subscribes = [];
 		this.dispatchers = [];
-
-		if (arguments.length > 0) {
-			if ((typeof data === 'undefined' ? 'undefined' : _typeof(data)) !== 'object' || data === null) {
-				data = {};
-			}
-			this.fill(data);
-		}
+		(typeof data === 'undefined' ? 'undefined' : _typeof(data)) === 'object' && data !== null && this.fill(data);
 	}
 
 	_createClass(Emitter, [{
@@ -123,6 +189,9 @@ var Emitter = function () {
 		value: function fill(data) {
 			var _this = this;
 
+			if (supportFormData && FormData.prototype.isPrototypeOf(data)) {
+				data = fromFormData(data);
+			}
 			Object.keys(data).forEach(function (name) {
 				_this.store[name] = data[name];
 			});
@@ -136,7 +205,6 @@ var Emitter = function () {
 			this.keys().forEach(function (name) {
 				callback(_this2.store[name], name);
 			});
-
 			return this;
 		}
 	}, {
@@ -227,7 +295,11 @@ var Emitter = function () {
 
 					var array = Array.isArray(value),
 					    remap = [],
-					    raw = !array && (supportFile && value instanceof File || supportBlob && value instanceof Blob);
+					    raw = !array && hasRaw(value),
+					    add = function add(key, value) {
+						if (hasRaw(key, value)) remap.push(key, value, true);else if (_rvjsTools2.default.isScalar(value)) remap.push(key, value, false);else array = false;
+						return array;
+					};
 
 					if (array) {
 
@@ -236,29 +308,18 @@ var Emitter = function () {
 
 						var arrayName = name + '[]';
 						for (var i = 0, length = value.length; i < length; i++) {
-
-							if (_rvjsTools2.default.isScalar(value[i])) {
-								remap.push(arrayName, value[i]);
-							} else {
-								array = false;
-								break;
-							}
+							if (!add(arrayName, value[i])) break;
 						}
 					} else if (!raw) {
 						array = true;
 						Object.keys(value).some(function (key) {
-							if (_rvjsTools2.default.isScalar(value[key])) {
-								remap.push(name + "[" + key + "]", value[key]);
-							} else {
-								array = false;
-								return false;
-							}
+							return !add(name + "[" + key + "]", value[key]);
 						});
 					}
 
 					if (array) {
-						for (var _i = 0, _length = remap.length; _i < _length; _i += 2) {
-							form.append(remap[_i], _rvjsTools2.default.toString(remap[_i + 1]));
+						for (var _i = 0, _length = remap.length; _i < _length; _i += 3) {
+							form.append(remap[_i], remap[_i + 2] ? remap[_i + 1] : _rvjsTools2.default.toString(remap[_i + 1]));
 						}
 						return void 0;
 					} else if (!raw) {
