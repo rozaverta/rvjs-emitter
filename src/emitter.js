@@ -94,8 +94,10 @@ function dispatcher(emit, action, name, value, oldValue) {
 		fix.push(name);
 		emit.subscribes.forEach(function (callback) {
 			try {
-				callback(e);
-			} catch (e) {}
+				callback.call(emit, e);
+			} catch (e) {
+				console.log("dispatch error", e);
+			}
 		});
 
 		(index = fix.indexOf(name)) > -1 && fix.splice(index, 1);
@@ -173,10 +175,86 @@ var Emitter = function () {
 	function Emitter(data) {
 		_classCallCheck(this, Emitter);
 
-		this.store = {};
-		this.subscribes = [];
-		this.dispatchers = [];
-		(typeof data === 'undefined' ? 'undefined' : _typeof(data)) === 'object' && data !== null && this.fill(data);
+		var self = this,
+		    depth = 0,
+		    listeners = [],
+		    on = false;
+
+		self.store = {};
+		self.subscribes = [];
+		self.dispatchers = [];
+
+		// fill data
+		(typeof data === 'undefined' ? 'undefined' : _typeof(data)) === 'object' && data !== null && self.fill(data);
+
+		self.subscribeOn = function () {
+			var type = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : 'value';
+
+			if (on) {
+				self.off(on);
+			}
+
+			self.on(on = function on(e) {
+				self.dispatch({
+					type: type,
+					action: e.action, name: e.name, value: e.value, oldValue: e.oldValue
+				});
+			});
+
+			return function unsubscribe() {
+				if (on) {
+					self.off(on);
+					on = false;
+				}
+			};
+		};
+
+		self.subscribe = function (listener) {
+			if (typeof listener !== 'function') {
+				throw new Error('Expected listener to be a function');
+			}
+
+			var index = listeners.indexOf(listener);
+			if (index < 0) {
+				listeners.push(listener);
+			}
+
+			return function unsubscribe() {
+				var index = listeners.indexOf(listener);
+				if (~index) {
+					listeners.splice(index, 1);
+				}
+			};
+		};
+
+		self.dispatch = function (action) {
+			if ((typeof action === 'undefined' ? 'undefined' : _typeof(action)) !== 'object') {
+				throw new Error('Actions must be object');
+			}
+
+			if (typeof action.type !== 'string') {
+				throw new Error('Actions "type" property must be string');
+			}
+
+			if (depth > 10) {
+				throw new Error('Can\'t dispatch actions, depth limit');
+			}
+
+			depth++;
+			var copy = Object.assign([], listeners);
+
+			for (var i = 0; i < copy.length; i++) {
+				try {
+					copy[i].call(self, action);
+				} catch (e) {
+					console.log("dispatch actions error", e);
+				}
+			}
+
+			depth--;
+
+			return action;
+		};
 	}
 
 	_createClass(Emitter, [{
