@@ -1,6 +1,6 @@
 {
 	"name": "rvjs-emitter",
-	"version": "1.0.5",
+	"version": "1.0.7",
 	"description": "Custom event listener dispatcher for store",
 	"main": "src/emitter.js",
 	"scripts": {
@@ -13,8 +13,12 @@
 		"dispatcher",
 		"callback"
 	],
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/rozaverta/rvjs-emitter"
+	},
 	"dependencies": {
-		"rvjs-tools": "*"
+		"rvjs-tools": "^1.0.5"
 	},
 	"author": "GoshaV [Maniako]",
 	"license": "MIT"

@@ -88,6 +88,13 @@ function dispatcher(emit, action, name, value, oldValue) {
 			},
 			get oldValue() {
 				return oldValue;
+			},
+			getObject: function getObject() {
+				var obj = {};
+				if (action !== 'delete') {
+					obj[name] = value;
+				}
+				return obj;
 			}
 		};
 
@@ -95,8 +102,8 @@ function dispatcher(emit, action, name, value, oldValue) {
 		emit.subscribes.forEach(function (callback) {
 			try {
 				callback.call(emit, e);
-			} catch (e) {
-				console.log("dispatch error", e);
+			} catch (err) {
+				(0, _rvjsTools.Log)(err, "dispatch error");
 			}
 		});
 
@@ -241,13 +248,42 @@ var Emitter = function () {
 			}
 
 			depth++;
-			var copy = Object.assign([], listeners);
+			var i = 0,
+			    copy = listeners.slice(0),
+			    prevent = false,
+			    stop = false,
+			    e = {
+				get part() {
+					return i + 1;
+				},
+				get parts() {
+					return copy.length;
+				},
+				get detail() {
+					return action;
+				},
+				isDefaultPrevented: function isDefaultPrevented() {
+					return prevent;
+				},
+				isPropagationStopped: function isPropagationStopped() {
+					return stop;
+				},
+				preventDefault: function preventDefault() {
+					prevent = true;
+				},
+				stopPropagation: function stopPropagation() {
+					stop = true;
+				}
+			};
 
-			for (var i = 0; i < copy.length; i++) {
+			for (var _i = 0; _i < copy.length; _i++) {
 				try {
-					copy[i].call(self, action);
-				} catch (e) {
-					console.log("dispatch actions error", e);
+					copy[_i].call(self, action, e);
+				} catch (err) {
+					(0, _rvjsTools.Log)(err, "dispatch actions error");
+				}
+				if (stop) {
+					break;
 				}
 			}
 
@@ -396,8 +432,8 @@ var Emitter = function () {
 					}
 
 					if (array) {
-						for (var _i = 0, _length = remap.length; _i < _length; _i += 3) {
-							form.append(remap[_i], remap[_i + 2] ? remap[_i + 1] : _rvjsTools2.default.toString(remap[_i + 1]));
+						for (var _i2 = 0, _length = remap.length; _i2 < _length; _i2 += 3) {
+							form.append(remap[_i2], remap[_i2 + 2] ? remap[_i2 + 1] : _rvjsTools2.default.toString(remap[_i2 + 1]));
 						}
 						return void 0;
 					} else if (!raw) {
